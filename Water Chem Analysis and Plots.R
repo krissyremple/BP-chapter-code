@@ -1,6 +1,6 @@
 ## Analysis of water chemistry
 ## By: Krissy Remple
-## Last updated: 12 Apr 2021
+## Last updated: 14 Apr 2021
 ########################################
 
 #libraries
@@ -26,6 +26,8 @@ Hi_Res$Site.2 <- factor(Hi_Res$Site.2, levels = c("Spring", "Transition", "Diffu
 Hi_Res$Day <- as.factor(Hi_Res$Day)
 
 
+#Set colors for plotting later
+Site.cols <- c('#d1495b', '#edae49', '#66a182', '#173F5F')
 ########################################
 #Make a dataset for the chemistry of interest
 
@@ -118,13 +120,14 @@ SGD_Long$Parameter <- factor(SGD_Long$Parameter, levels = c("N.N.umol.L", "Phosp
 SGD_Chem_plots <- ggplot(SGD_Long, aes(x=Salinity, y = value))+
   geom_point()+
   stat_smooth(method = "lm", formula = y~x, size = 1, aes(group = 1))+
-  facet_wrap(~Parameter, scales = "free", strip.position = "top" )+
+  facet_wrap(~Parameter, scales = "free", strip.position = "top" , ncol = 4)+
   theme_light()
 
 SGD_Chem_plots
 
 
-#ggsave(filename = "Chapter_SGD dotplots.png", plot = SGD_Chem_plots, width = 5, height = 5, units = "in")
+
+#ggsave(filename = "Chapter_SGD dotplots.png", plot = SGD_Chem_plots, width = 7, height = 5, units = "in")
 
 
 #Make a box plot to see  each parameter by site
@@ -137,9 +140,71 @@ SGD_Chem_Stats$Parameter <- factor(SGD_Chem_Stats$Parameter, levels = c("N.N.umo
 
 SGD_Box <- ggplot(SGD_Chem_Stats, aes(x = Site.2, y = Mean, fill = Site.2))+
   geom_boxplot()+
-  facet_wrap(~Parameter, scales = "free", strip.position = "left")
+  scale_fill_manual(values = Site.cols)+
+  facet_wrap(~Parameter, scales = "free", strip.position = "top", ncol = 4)+
+  theme_light()
 
 SGD_Box
 
-#ggsave(filename = "Chapter SGD Boxplot.png", plot = SGD_Box, width = 10, height = 9, units = "in")
+#ggsave(filename = "Chapter_SGD Boxplot.png", plot = SGD_Box, width = 12, height = 8, units = "in")
 
+#Make these plots for the other chems
+#Select chem parameters from model 1 output that were not selected for SGD.
+Reef_Chems <- Mod1_Out[!Mod1_Out$Nutrient %in% Chem_Name,]
+
+#Clear these parameters to avoid accidents
+rm(col.nos, Chem_Name)
+
+## Get the Reef chems of interest in a dataframe
+Chem_Name <- Reef_Chems$Nutrient
+col.nos <- which(colnames(Chem_complete) %in% Chem_Name)
+Reef_Chem_DF <- cbind(Chem_complete[,c(1:3,6)],Chem_complete[col.nos] )
+
+#Get the summary statistics
+Reef_Chem_Stats <- Reef_Chem_DF %>%
+  # tidy data
+  gather(Parameter, value, -(1:4)) %>%
+  group_by(Parameter, Site.2, Salinity) %>%
+  summarise(
+    Mean = mean(value, na.rm=TRUE),
+    Min = min(value, na.rm=TRUE),
+    Max = max(value, na.rm=TRUE),
+    Geo_Mean = geoMean(value, na.rm = TRUE)
+    
+  )
+
+
+
+## Make long DF for regressions
+Reef_Long <- Reef_Chem_DF %>%
+  gather("Parameter", "value", -c(1:4))
+
+#For plotting, make parameter a factor and specify the order
+Reef_Long$Parameter <- as.factor(Reef_Long$Parameter)
+
+Reef_Long$Parameter <- factor(Reef_Long$Parameter, levels = c("Bacterioplankton", "NH3.umol.L", "Eukaryotes", "CobleT","Chla.ug.L", "DOC..uM."))
+
+#Make the plots
+Reef_Chem_plots <- ggplot(Reef_Long, aes(x=Salinity, y = value))+
+  geom_point()+
+  stat_smooth(method = "lm", formula = y~x, size = 1, aes(group = 1))+
+  stat_smooth(method = "lm", formula = y ~ poly(x,2), size = 1, aes(group = 1), color = "red")+
+  facet_wrap(~Parameter, scales = "free", strip.position = "top", ncol = 2)+
+  theme_light()
+Reef_Chem_plots
+
+
+#ggsave(filename = "Chapter Reef Chem Dot Plots.png", plot = Reef_Chem_plots, width = 8, height = 10, units = "in")
+
+Reef_Chem_Stats$Parameter <- as.factor(Reef_Chem_Stats$Parameter)
+
+Reef_Chem_Stats$Parameter <- factor(Reef_Chem_Stats$Parameter, levels = c("Bacterioplankton", "NH3.umol.L", "Eukaryotes", "CobleT","Chla.ug.L", "DOC..uM."))
+
+Reef_Box <- ggplot(Reef_Chem_Stats, aes(x=Site.2, y = Mean, fill = Site.2))+
+  geom_boxplot()+
+  scale_fill_manual(values = Site.cols)+
+  theme_light()+
+  facet_wrap(~Parameter, scales = "free", strip.position = "top", ncol = 2)
+Reef_Box
+
+#ggsave(filename = "Chapter Reef boxplot.png", plot = Reef_Box, width = 8, height = 10, units = "in")
