@@ -102,7 +102,9 @@ SGD_Chem_Stats <- SGD_Chem_DF %>%
     Geo_Mean = geoMean(value, na.rm = TRUE)
   )
 
-  
+
+
+
 
 #Make some plots
 se <- function(x) sd(x)/sqrt(length(x))
